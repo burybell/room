@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Room</title>
+</head>
+<body>
+
+<div class="room-enter">
+    <label>
+        <input id="room-id" placeholder="room id">
+    </label>
+    <button onclick="onConnect()">connect</button>
+</div>
+
+<div class="room-main">
+    <div id="msg"></div>
+    <label>
+        <input id="msg-input" placeholder="input a message to send">
+    </label>
+    <button onclick="onSend()">send</button>
+</div>
+<script>
+
+    const connect = (roomID, userID) => {
+        let ws = new WebSocket(`ws://localhost:8080/rooms/${roomID}/enter/${userID}`);
+        ws.onmessage = (event) => {
+            dispatch(JSON.parse(event.data))
+        }
+    }
+
+    const dispatch = ({eventType, eventData}) => {
+        console.log(eventType, eventData)
+        switch (eventType) {
+            case "user_enter":
+                userEnter(eventData)
+                break;
+            case "user_leave":
+                userLeave(eventData)
+                break;
+            case "user_msg":
+                userMsg(eventData)
+                break;
+        }
+    }
+
+    const userEnter = ({userID}) => {
+        const divElement = document.createElement("div");
+        divElement.innerText = userID + " enter the room";
+        document.getElementById("msg").appendChild(divElement)
+    }
+
+    const userLeave = ({userID}) => {
+        const divElement = document.createElement("div");
+        divElement.innerText = userID + " leave the room";
+        document.getElementById("msg").appendChild(divElement)
+    }
+
+    const userMsg = ({userID, message}) => {
+        const divElement = document.createElement("div");
+        divElement.innerText = userID + " send a message: " + message;
+        document.getElementById("msg").appendChild(divElement)
+    }
+</script>
+<script>
+    let inputRoomID = "default"
+    const userID = crypto.randomUUID()
+    const onConnect = () => {
+        const roomID = document.getElementById("room-id")
+        if (roomID) {
+            inputRoomID = roomID.value
+            connect(roomID.value, userID)
+        } else {
+            alert("please input room id")
+        }
+    }
+
+    const onSend = () => {
+        const msgInput = document.getElementById("msg-input")
+        if (msgInput) {
+            fetch(`http://localhost:8080/rooms/${inputRoomID}/publish/${userID}`, {
+                method: "POST",
+                body: JSON.stringify({
+                    message: msgInput.value
+                })
+            })
+        } else {
+            alert("please input message")
+        }
+    }
+</script>
+</body>
+</html>
