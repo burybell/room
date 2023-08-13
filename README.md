@@ -11,7 +11,7 @@ docker run -d -p 4222:4222 nats:latest
 
 ## start chat room
 ```shell
-go run examples/chat-room/main.go
+cd ./examples/chat-room/ && go build && ./chat-room
 ```
 
 ## open browser
