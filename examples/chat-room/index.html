@@ -10,6 +10,9 @@
     <label>
         <input id="room-id" placeholder="room id">
     </label>
+    <label>
+        <input id="user-id" placeholder="user id">
+    </label>
     <button onclick="onConnect()">connect</button>
 </div>
 
@@ -22,8 +25,9 @@
 </div>
 <script>
 
+    const host = window.location.host
     const connect = (roomID, userID) => {
-        let ws = new WebSocket(`ws://localhost:8080/rooms/${roomID}/enter/${userID}`);
+        let ws = new WebSocket(`ws://${host}/rooms/${roomID}/enter/${userID}`);
         ws.onmessage = (event) => {
             dispatch(JSON.parse(event.data))
         }
@@ -64,21 +68,28 @@
 </script>
 <script>
     let inputRoomID = "default"
-    const userID = crypto.randomUUID()
+    let inputUserID = "default"
     const onConnect = () => {
         const roomID = document.getElementById("room-id")
-        if (roomID) {
+        const userID = document.getElementById("user-id")
+        if (roomID.value && userID.value) {
             inputRoomID = roomID.value
-            connect(roomID.value, userID)
+            inputUserID = userID.value
+            connect(roomID.value, inputUserID)
         } else {
             alert("please input room id")
         }
     }
 
     const onSend = () => {
+        if (inputUserID === "default" || inputUserID === "default") {
+            alert("please connect first")
+            return
+        }
+
         const msgInput = document.getElementById("msg-input")
         if (msgInput) {
-            fetch(`http://localhost:8080/rooms/${inputRoomID}/publish/${userID}`, {
+            fetch(`http://${host}/rooms/${inputRoomID}/publish/${inputUserID}`, {
                 method: "POST",
                 body: JSON.stringify({
                     message: msgInput.value
@@ -88,6 +99,12 @@
             alert("please input message")
         }
     }
+
+    document.getElementById("msg-input").addEventListener("keydown", (event) => {
+        if (event.code === "Enter") {
+            onSend()
+        }
+    })
 </script>
 </body>
 </html>
