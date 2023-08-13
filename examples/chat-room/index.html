@@ -3,21 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <title>Chat Room</title>
+    <style>
+        input {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            background-color: #1111d2;
+            color: white;
+            font-weight: bold;
+        }
+
+        .room-enter {
+            width: 200px;
+            margin: 20px auto;
+        }
+
+        .room-main {
+            width: 800px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        #messages {
+            height: 60vh;
+            margin: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            overflow: auto;
+        }
+    </style>
 </head>
 <body>
 
-<div class="room-enter">
+<div id="room-enter" class="room-enter">
     <label>
         <input id="room-id" placeholder="room id">
     </label>
     <label>
         <input id="user-id" placeholder="user id">
     </label>
-    <button onclick="onConnect()">connect</button>
+    <button onclick="onEnter()">enter</button>
 </div>
 
-<div class="room-main">
-    <div id="msg"></div>
+<div id="room-main" class="room-main" hidden="hidden">
+    <div id="messages"></div>
     <label>
         <input id="msg-input" placeholder="input a message to send">
     </label>
@@ -30,6 +70,10 @@
         let ws = new WebSocket(`ws://${host}/rooms/${roomID}/enter/${userID}`);
         ws.onmessage = (event) => {
             dispatch(JSON.parse(event.data))
+        }
+        ws.onopen = () => {
+            document.getElementById("room-main").removeAttribute("hidden")
+            document.getElementById("room-enter").hidden = true
         }
     }
 
@@ -51,25 +95,25 @@
     const userEnter = ({userID}) => {
         const divElement = document.createElement("div");
         divElement.innerText = userID + " enter the room";
-        document.getElementById("msg").appendChild(divElement)
+        document.getElementById("messages").appendChild(divElement)
     }
 
     const userLeave = ({userID}) => {
         const divElement = document.createElement("div");
         divElement.innerText = userID + " leave the room";
-        document.getElementById("msg").appendChild(divElement)
+        document.getElementById("messages").appendChild(divElement)
     }
 
     const userMsg = ({userID, message}) => {
         const divElement = document.createElement("div");
         divElement.innerText = userID + " send a message: " + message;
-        document.getElementById("msg").appendChild(divElement)
+        document.getElementById("messages").appendChild(divElement)
     }
 </script>
 <script>
     let inputRoomID = "default"
     let inputUserID = "default"
-    const onConnect = () => {
+    const onEnter = () => {
         const roomID = document.getElementById("room-id")
         const userID = document.getElementById("user-id")
         if (roomID.value && userID.value) {
