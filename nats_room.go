@@ -24,10 +24,16 @@ type NatsRoom[T IMessage] struct {
 	natConn      *nats.Conn
 	encodedConn  *nats.EncodedConn
 	subscription *nats.Subscription
+
+	options *RoomOptions
 }
 
-func NewNatsRoom[T IMessage](id string, natConn *nats.Conn) IRoom {
-	return &NatsRoom[T]{id: id, natConn: natConn}
+func NewNatsRoom[T IMessage](id string, natConn *nats.Conn, opt ...RoomOption) IRoom {
+	opts := DefaultRoomOptions()
+	for i := range opt {
+		opt[i](opts)
+	}
+	return &NatsRoom[T]{id: id, natConn: natConn, options: opts}
 }
 
 func (r *NatsRoom[T]) ID() string {
@@ -39,10 +45,11 @@ func (r *NatsRoom[T]) Init() (err error) {
 		return errors.New("room id is empty")
 	}
 	r.users = make(map[string]IUser)
-	r.pushCh = make(chan IMessage, 1000)
+	r.pushCh = make(chan IMessage, r.options.MsgBuffSize)
 	r.msgCh = make(chan T)
-	r.enterCh = make(chan IUser, 1)
-	r.leaveCh = make(chan IUser, 1)
+	r.enterCh = make(chan IUser, r.options.EnterBuffSize)
+	r.leaveCh = make(chan IUser, r.options.LeaveBuffSize)
+	r.closeCh = make(chan bool)
 
 	r.encodedConn, err = nats.NewEncodedConn(r.natConn, nats.JSON_ENCODER)
 	if err != nil {
@@ -59,7 +66,7 @@ func (r *NatsRoom[T]) Init() (err error) {
 }
 
 func (r *NatsRoom[T]) init() {
-	heartbeat := time.NewTimer(time.Second)
+	heartbeat := time.NewTicker(time.Second)
 	for {
 		select {
 		case msg := <-r.msgCh:
@@ -76,8 +83,14 @@ func (r *NatsRoom[T]) init() {
 			}
 		case user := <-r.enterCh:
 			r.users[user.ID()] = user
+			if r.options.OnUserEnter != nil {
+				r.options.OnUserEnter(r, user)
+			}
 		case user := <-r.leaveCh:
 			if r.users[user.ID()] != nil {
+				if r.options.OnUserLeave != nil {
+					r.options.OnUserLeave(r, user)
+				}
 				err := r.users[user.ID()].Close()
 				if err != nil {
 					log.Printf("close connection error: %v", err)
@@ -88,7 +101,8 @@ func (r *NatsRoom[T]) init() {
 			for _, user := range r.users {
 				err := user.Conn().Heartbeat()
 				if err != nil {
-					log.Printf("write message error: %v", err)
+					r.leaveCh <- user
+					log.Printf("heartbeat message error: %v", err)
 				}
 			}
 		case <-r.closeCh:

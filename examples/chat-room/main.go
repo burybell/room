@@ -35,7 +35,17 @@ func init() {
 
 	// create rooms
 	rooms = room.NewNatsRooms(conn, func(id string, conn *nats.Conn) room.IRoom {
-		return room.NewNatsRoom[RoomEvent](id, conn)
+		return room.NewNatsRoom[RoomEvent](id, conn, room.SetOnUserEnter(func(room room.IRoom, user room.IUser) {
+			err = room.Broadcast(RoomEvent{EventType: UserEnter, EventData: map[string]any{"userID": user.ID()}})
+			if err != nil {
+				log.Printf("on user enter broadcast error: %v", err)
+			}
+		}), room.SetOnUserLeave(func(room room.IRoom, user room.IUser) {
+			err = room.Broadcast(RoomEvent{EventType: UserLeave, EventData: map[string]any{"userID": user.ID()}})
+			if err != nil {
+				log.Printf("on user leave broadcast error: %v", err)
+			}
+		}))
 	})
 
 	// init rooms

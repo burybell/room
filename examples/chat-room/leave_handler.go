@@ -16,12 +16,6 @@ func LeaveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userID = mux.Vars(r)["user_id"]
-	err = rm.Broadcast(RoomEvent{EventType: UserLeave, EventData: map[string]any{"userID": userID}})
-	if err != nil {
-		ResponseErr(w, 500, err)
-		return
-	}
-
 	err = rm.Leave(room.NewUser(userID, nil))
 	if err != nil {
 		ResponseErr(w, 500, err)

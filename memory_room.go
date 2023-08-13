@@ -18,10 +18,16 @@ type MemoryRoom struct {
 	enterCh chan IUser
 	leaveCh chan IUser
 	closeCh chan bool
+
+	options *RoomOptions
 }
 
-func NewMemoryRoom(id string) *MemoryRoom {
-	return &MemoryRoom{id: id}
+func NewMemoryRoom(id string, opt ...RoomOption) *MemoryRoom {
+	opts := DefaultRoomOptions()
+	for i := range opt {
+		opt[i](opts)
+	}
+	return &MemoryRoom{id: id, options: opts}
 }
 
 func (r *MemoryRoom) ID() string {
@@ -33,15 +39,16 @@ func (r *MemoryRoom) Init() error {
 		return errors.New("room id is empty")
 	}
 	r.users = make(map[string]IUser)
-	r.msgCh = make(chan IMessage, 1000)
-	r.enterCh = make(chan IUser, 1)
-	r.leaveCh = make(chan IUser, 1)
+	r.msgCh = make(chan IMessage, r.options.MsgBuffSize)
+	r.enterCh = make(chan IUser, r.options.EnterBuffSize)
+	r.leaveCh = make(chan IUser, r.options.LeaveBuffSize)
+	r.closeCh = make(chan bool)
 	go r.init()
 	return nil
 }
 
 func (r *MemoryRoom) init() {
-	heartbeat := time.NewTimer(time.Second)
+	heartbeat := time.NewTicker(time.Second)
 	for {
 		select {
 		case msg := <-r.msgCh:
@@ -53,7 +60,13 @@ func (r *MemoryRoom) init() {
 			}
 		case user := <-r.enterCh:
 			r.users[user.ID()] = user
+			if r.options.OnUserEnter != nil {
+				r.options.OnUserEnter(r, user)
+			}
 		case user := <-r.leaveCh:
+			if r.options.OnUserLeave != nil {
+				r.options.OnUserLeave(r, user)
+			}
 			if r.users[user.ID()] != nil {
 				err := r.users[user.ID()].Close()
 				if err != nil {
@@ -65,6 +78,7 @@ func (r *MemoryRoom) init() {
 			for _, user := range r.users {
 				err := user.Conn().Heartbeat()
 				if err != nil {
+					r.leaveCh <- user
 					log.Printf("write message error: %v", err)
 				}
 			}

@@ -32,10 +32,4 @@ func EnterHandler(w http.ResponseWriter, r *http.Request) {
 		ResponseErr(w, 500, err)
 		return
 	}
-
-	err = rm.Broadcast(RoomEvent{EventType: UserEnter, EventData: map[string]any{"userID": userID}})
-	if err != nil {
-		ResponseErr(w, 500, err)
-		return
-	}
 }
